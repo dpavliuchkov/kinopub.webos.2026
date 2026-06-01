@@ -22,6 +22,8 @@ export function mapAudios(audios: Audio[], ac3ByDefault?: boolean, savedAudioNam
       name,
       number,
       lang: audio.lang,
+      index: audio.index,
+      id: audio.id,
       default: (savedAudioName && savedAudioName === name) || (!savedAudioName && ac3ByDefault && audio.codec === 'ac3'),
     };
   });
@@ -59,6 +61,8 @@ export function mapSubtitles(subtitles: Subtitle[], forcedByDefault?: boolean, s
       number,
       src: subtitle.url,
       lang: subtitle.lang,
+      shift: subtitle.shift,
+      forced: subtitle.forced,
       default:
         (savedSubtitleName && savedSubtitleName === name) ||
         (!savedSubtitleName && forcedByDefault && subtitle.forced && subtitle.lang === 'rus'),

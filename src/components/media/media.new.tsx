@@ -12,6 +12,8 @@ export type AudioTrack = {
   name: string;
   number: string;
   lang: string;
+  index: number;
+  id: string;
   default?: boolean;
 };
 
@@ -27,6 +29,8 @@ export type SubtitleTrack = {
   name: string;
   number: string;
   lang: string;
+  shift?: number;
+  forced?: boolean;
   default?: boolean;
 };
 
@@ -121,10 +125,11 @@ function useVideoPlayer({
     [sourceTracks, onSourceChange],
   );
   const getSubtitleTracks = useCallback(() => subtitleTracks, [subtitleTracks]);
-  const getSubtitleTrack = useCallback(() => currentSubtitleTrack?.name, [currentSubtitleTrack]);
+  // Key selection on the unique `number`, not `name`: two same-language tracks share a name.
+  const getSubtitleTrack = useCallback(() => currentSubtitleTrack?.number, [currentSubtitleTrack]);
   const setSubtitleTrack = useCallback(
-    (subtitleTrackName?: string) => {
-      const subtitleTrackIndex = subtitleTracks?.findIndex((subtitleTrack) => subtitleTrack.name === subtitleTrackName) ?? -1;
+    (subtitleTrackNumber?: string) => {
+      const subtitleTrackIndex = subtitleTracks?.findIndex((subtitleTrack) => subtitleTrack.number === subtitleTrackNumber) ?? -1;
 
       const subtitleTrack = (subtitleTrackIndex !== -1 && subtitleTracks![subtitleTrackIndex]) || null;
       setCurrentSubtitleTrack(subtitleTrack);
@@ -134,16 +139,18 @@ function useVideoPlayer({
   );
 
   const currentAudioTrackIndex = useMemo(
-    () => audioTracks?.findIndex((audioTrack) => audioTrack.name === currentAudioTrack.name) ?? 0,
+    () => audioTracks?.findIndex((audioTrack) => audioTrack.name === currentAudioTrack?.name) ?? 0,
     [audioTracks, currentAudioTrack],
   );
-  const currentSrc = useMemo(
-    () =>
-      streamingType === 'hls'
-        ? currentSourceTrack?.src.replace(/master-v1a\d/, `master-v1a${currentAudioTrackIndex + 1}`)
-        : currentSourceTrack?.src,
-    [streamingType, currentAudioTrackIndex, currentSourceTrack?.src],
-  );
+  const currentSrc = useMemo(() => {
+    // For plain `hls`, kinopub serves a separate per-audio master playlist; the audio is
+    // selected by the `master-v1aN` suffix, where N is the server's own stream index.
+    // `\d+` (not `\d`) so two-digit suffixes are replaced wholesale.
+    if (streamingType === 'hls' && currentSourceTrack?.src && currentAudioTrack) {
+      return currentSourceTrack.src.replace(/master-v1a\d+/, `master-v1a${currentAudioTrack.index}`);
+    }
+    return currentSourceTrack?.src;
+  }, [streamingType, currentAudioTrack, currentSourceTrack?.src]);
 
   const handleMediaLoaded = useCallback(() => {
     if (videoRef.current) {
@@ -202,25 +209,36 @@ function useVideoPlayer({
   useEffect(() => {
     if (isLoaded) {
       if (hlsRef.current) {
-        const hlsAudioTrack = hlsRef.current.audioTracks?.[currentAudioTrackIndex];
+        // Match hls.js parsed tracks by a stable key (language, then name), not array
+        // position - hls.js orders/filters its tracks independently of the API order.
+        const hlsTracks = hlsRef.current.audioTracks || [];
+        const hlsAudioTrack =
+          hlsTracks.find((audioTrack) => audioTrack.lang && audioTrack.lang === currentAudioTrack?.lang) ??
+          hlsTracks.find((audioTrack) => audioTrack.name === currentAudioTrack?.name) ??
+          hlsTracks[currentAudioTrackIndex];
 
         if (hlsAudioTrack) {
           hlsRef.current.audioTrack = hlsAudioTrack.id;
         }
       } else if (videoRef.current) {
         // Do not change audio if we don't have it (mostly on HLS)
-        // @ts-expect-error
-        if (videoRef.current.audioTracks?.[currentAudioTrackIndex]) {
-          // @ts-expect-error
-          forEach(videoRef.current.audioTracks, (audioTrack, idx: number) => {
-            audioTrack.enabled = idx === currentAudioTrackIndex;
+        // @ts-expect-error - audioTracks is not part of the standard lib types
+        const nativeTracks: any[] = Array.from(videoRef.current.audioTracks || []);
+        let targetIndex = nativeTracks.findIndex((audioTrack) => audioTrack.language && audioTrack.language === currentAudioTrack?.lang);
+        if (targetIndex === -1) {
+          targetIndex = currentAudioTrackIndex;
+        }
+
+        if (nativeTracks[targetIndex]) {
+          forEach(nativeTracks, (audioTrack, idx: number) => {
+            audioTrack.enabled = idx === targetIndex;
           });
 
           videoRef.current.currentTime -= 1;
         }
       }
     }
-  }, [isLoaded, currentAudioTrackIndex]);
+  }, [isLoaded, currentAudioTrackIndex, currentAudioTrack]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -342,7 +360,9 @@ function useVideoPlayerApi(ref: React.ForwardedRef<MediaRef>, props: OwnProps) {
   }, [videoRef]);
   const getLoading = useCallback(() => {
     if (videoRef.current) {
-      return videoRef.current.readyState < videoRef.current.HAVE_ENOUGH_DATA;
+      // HLS-via-hls.js rarely reaches HAVE_ENOUGH_DATA on TV, which would keep moonstone's
+      // `sourceUnavailable` flag latched. Clearing once playback can proceed is enough.
+      return videoRef.current.readyState < videoRef.current.HAVE_CURRENT_DATA;
     }
     return true;
   }, [videoRef]);
@@ -356,7 +376,9 @@ function useVideoPlayerApi(ref: React.ForwardedRef<MediaRef>, props: OwnProps) {
   }, [videoRef]);
   const getProportionPlayed = useCallback(() => {
     if (videoRef.current) {
-      return videoRef.current.currentTime / videoRef.current.duration;
+      const duration = videoRef.current.duration;
+      // Guard against NaN/Infinity duration (HLS before metadata) pinning the slider at 0.
+      return duration && isFinite(duration) ? videoRef.current.currentTime / duration : 0;
     }
     return 0;
   }, [videoRef]);
@@ -549,6 +571,23 @@ const Media = React.forwardRef<MediaRef, MediaProps>(
       onSourceChange,
       onSubtitleChange,
     });
+
+    // Backstop for moonstone's timeline: React synthetic media events on an hls.js/MSE-fed
+    // <video> are unreliable on webOS, which leaves moonstone's currentTime (and therefore the
+    // slider + seek math) stuck at 0. Native listeners reliably drive `onUpdate` -> handleEvent.
+    useEffect(() => {
+      const el = player.videoRef.current;
+      if (!el) {
+        return;
+      }
+
+      const events = ['timeupdate', 'durationchange', 'progress', 'play', 'pause', 'seeked', 'loadedmetadata'];
+      events.forEach((event) => el.addEventListener(event, handleUpdate));
+
+      return () => {
+        events.forEach((event) => el.removeEventListener(event, handleUpdate));
+      };
+    }, [handleUpdate, player.videoRef]);
 
     return <video {...props} {...eventProps} autoPlay={false} className={cx('w-screen h-screen', className)} ref={player.videoRef} />;
   },

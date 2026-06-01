@@ -28,7 +28,7 @@ const Settings: React.FC<Props> = ({ visible, onClose, player }) => {
   const subtitleOptions = useMemo(
     () => [
       { title: 'Нет', value: NONE },
-      ...map(subtitles, (subtitle) => ({ title: `${subtitle.number} ${subtitle.name}`, value: subtitle.name })),
+      ...map(subtitles, (subtitle) => ({ title: `${subtitle.number} ${subtitle.name}`, value: subtitle.number })),
     ],
     [subtitles],
   );
