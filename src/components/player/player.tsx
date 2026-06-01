@@ -46,21 +46,33 @@ const Player: React.FC<PlayerProps> = ({
 }) => {
   const playerRef = useRef<VideoPlayerBase>();
   const [isPaused, setIsPaused] = useState(true);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const controlsHideTimeoutRef = useRef<NodeJS.Timeout>();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPauseByOKClickActive] = useStorageState<boolean>('is_pause_by_ok_click_active');
 
+  const showControls = useCallback((autoHide: boolean) => {
+    clearTimeout(controlsHideTimeoutRef.current);
+    setIsControlsVisible(true);
+    if (autoHide) {
+      controlsHideTimeoutRef.current = setTimeout(() => setIsControlsVisible(false), 5000);
+    }
+  }, []);
+
   const handlePlay = useCallback(() => {
     setIsPaused(false);
     setIsSettingsOpen(false);
+    showControls(true);
     onPlay?.();
-  }, [onPlay]);
+  }, [onPlay, showControls]);
   const handlePause = useCallback(
     (e) => {
       setIsPaused(true);
+      showControls(false);
       onPause?.(e.currentTime);
     },
-    [onPause],
+    [onPause, showControls],
   );
   const handlePlayPause = useCallback(
     (e: KeyboardEvent) => {
@@ -115,20 +127,8 @@ const Player: React.FC<PlayerProps> = ({
   }, [playerRef]);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (isPaused) {
-      timeoutId = setTimeout(() => {
-        setIsPaused(false);
-      }, 5 * 1000);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isPaused]);
+    return () => clearTimeout(controlsHideTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -154,13 +154,15 @@ const Player: React.FC<PlayerProps> = ({
   return (
     <>
       <Settings visible={isSettingsOpen} onClose={handleSettingsClose} player={playerRef} />
-      {isPaused && (
+      {isControlsVisible && (
         <div className="absolute z-10 top-0 px-4 pt-2 flex items-center">
           <BackButton className="mr-2" />
           <Text>{title}</Text>
         </div>
       )}
-      {isPaused && <Button className="absolute z-101 bottom-8 right-10 text-blue-600" icon="settings" onClick={handleSettingsOpen} />}
+      {isControlsVisible && (
+        <Button className="absolute z-101 bottom-8 right-10 text-blue-600" icon="settings" onClick={handleSettingsOpen} />
+      )}
       {isLoaded && startTime! > 0 && <StartFrom startTime={startTime} player={playerRef} />}
 
       <VideoPlayer
