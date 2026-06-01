@@ -33,6 +33,7 @@ bower_components
 build/
 dist/
 out/
+*.ipk
 
 # Dependency directories
 node_modules/
@@ -70,6 +71,9 @@ yarn-error.log
 .pnp.js
 # Yarn Integrity file
 .yarn-integrity
+
+# npm lock file (project uses yarn)
+package-lock.json
 
 # VSCode
 .vscode
