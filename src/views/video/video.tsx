@@ -65,6 +65,8 @@ const VideoView: React.FC = () => {
   const [savedAudioName, setSavedAudioName] = useStorageState<string>(`item_${item.id}_saved_audio_name`);
   const [savedSourceName, setSavedSourceName] = useStorageState<string>(`item_${item.id}_saved_source_name`);
   const [savedSubtitleName, setSavedSubtitleName] = useStorageState<string>(`item_${item.id}_saved_subtitle_name`);
+  const [preferredAudioLang] = useStorageState<string>('preferred_audio_lang');
+  const [preferredSubtitleLang] = useStorageState<string>('preferred_subtitle_lang');
 
   const [currentVideo, setCurrentVideo] = useState(video);
   const [previousVideo, nextVideo] = usePrevNextVideos(item, currentVideo, season);
@@ -85,9 +87,9 @@ const VideoView: React.FC = () => {
             title: getItemTitle(item, currentVideo, season),
             description: getItemDescription(item, currentVideo, season),
             poster: item.posters.wide || item.posters.big,
-            audios: mapAudios(currentVideo.audios, isAC3ByDefaultActive, savedAudioName),
+            audios: mapAudios(currentVideo.audios, isAC3ByDefaultActive, savedAudioName, preferredAudioLang),
             sources: mapSources(currentVideoLinks.data.files, streamingType, savedSourceName),
-            subtitles: mapSubtitles(currentVideoLinks.data.subtitles, isForcedByDefaultActive, savedSubtitleName),
+            subtitles: mapSubtitles(currentVideoLinks.data.subtitles, isForcedByDefaultActive, savedSubtitleName, preferredSubtitleLang),
             startTime: currentVideo.watching.status === WatchingStatus.Watching ? currentVideo.watching.time : 0,
           } as PlayerProps)
         : null,
@@ -102,6 +104,8 @@ const VideoView: React.FC = () => {
       savedAudioName,
       savedSourceName,
       savedSubtitleName,
+      preferredAudioLang,
+      preferredSubtitleLang,
     ],
   );
 

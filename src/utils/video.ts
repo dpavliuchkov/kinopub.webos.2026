@@ -8,7 +8,9 @@ import { AudioTrack, SourceTrack, SubtitleTrack } from 'components/media';
 
 const formatIdx = (idx: number) => (idx < 10 ? `0${idx}` : idx);
 
-export function mapAudios(audios: Audio[], ac3ByDefault?: boolean, savedAudioName?: string): AudioTrack[] {
+export function mapAudios(audios: Audio[], ac3ByDefault?: boolean, savedAudioName?: string, preferredAudioLang?: string): AudioTrack[] {
+  let preferredLangMatched = false;
+
   return map(audios, (audio, idx) => {
     const name = filter([
       audio.type?.title && audio.author?.title ? `${audio.type?.title}.` : audio.type?.title,
@@ -18,13 +20,19 @@ export function mapAudios(audios: Audio[], ac3ByDefault?: boolean, savedAudioNam
     ]).join(' ');
     const number = `${formatIdx(idx + 1)}.`;
 
+    const isPreferredLang = !savedAudioName && !preferredLangMatched && preferredAudioLang && audio.lang === preferredAudioLang;
+    if (isPreferredLang) preferredLangMatched = true;
+
     return {
       name,
       number,
       lang: audio.lang,
       index: audio.index,
       id: audio.id,
-      default: (savedAudioName && savedAudioName === name) || (!savedAudioName && ac3ByDefault && audio.codec === 'ac3'),
+      default:
+        (savedAudioName && savedAudioName === name) ||
+        !!isPreferredLang ||
+        (!savedAudioName && !preferredAudioLang && ac3ByDefault && audio.codec === 'ac3'),
     };
   });
 }
@@ -51,7 +59,19 @@ export function mapSources(
   );
 }
 
-export function mapSubtitles(subtitles: Subtitle[], forcedByDefault?: boolean, savedSubtitleName?: string): SubtitleTrack[] {
+export function mapSubtitles(
+  subtitles: Subtitle[],
+  forcedByDefault?: boolean,
+  savedSubtitleName?: string,
+  preferredSubtitleLang?: string,
+): SubtitleTrack[] {
+  const preferredIdx = preferredSubtitleLang
+    ? (() => {
+        const clean = subtitles.findIndex((s) => s.lang === preferredSubtitleLang && !s.forced);
+        return clean !== -1 ? clean : subtitles.findIndex((s) => s.lang === preferredSubtitleLang);
+      })()
+    : -1;
+
   return map(subtitles, (subtitle, idx) => {
     const name = `${toUpper(subtitle.lang)}${subtitle.forced ? ' Forced' : ''}`;
     const number = `${formatIdx(idx + 1)}.`;
@@ -65,7 +85,8 @@ export function mapSubtitles(subtitles: Subtitle[], forcedByDefault?: boolean, s
       forced: subtitle.forced,
       default:
         (savedSubtitleName && savedSubtitleName === name) ||
-        (!savedSubtitleName && forcedByDefault && subtitle.forced && subtitle.lang === 'rus'),
+        (!savedSubtitleName && preferredIdx !== -1 && idx === preferredIdx) ||
+        (!savedSubtitleName && preferredIdx === -1 && forcedByDefault && subtitle.forced && subtitle.lang === 'rus'),
     };
   });
 }

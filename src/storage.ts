@@ -11,7 +11,9 @@ export type Key =
   | 'is_pause_by_ok_click_active'
   | `item_${string}_saved_audio_name`
   | `item_${string}_saved_source_name`
-  | `item_${string}_saved_subtitle_name`;
+  | `item_${string}_saved_subtitle_name`
+  | 'preferred_audio_lang'
+  | 'preferred_subtitle_lang';
 
 function getItem(storage: Storage, prefix: string, key: string) {
   const data = JSON.parse(storage.getItem(prefix) || '{}') || {};

@@ -23,6 +23,43 @@ const SettingBool: React.FC<{ setting: DeviceSettingBoolean; onChange?: (checked
   );
 };
 
+type LanguageOption = { label: string; value: string };
+
+const AUDIO_LANGUAGE_OPTIONS: LanguageOption[] = [
+  { label: 'Не выбрано', value: '' },
+  { label: 'Русский (rus)', value: 'rus' },
+  { label: 'Английский (eng)', value: 'eng' },
+  { label: 'Украинский (ukr)', value: 'ukr' },
+];
+
+const SUBTITLE_LANGUAGE_OPTIONS: LanguageOption[] = [
+  { label: 'Без субтитров', value: '' },
+  { label: 'Русский (rus)', value: 'rus' },
+  { label: 'Английский (eng)', value: 'eng' },
+  { label: 'Украинский (ukr)', value: 'ukr' },
+];
+
+const LanguageSelect: React.FC<{
+  label: string;
+  options: LanguageOption[];
+  value?: string;
+  onChange: (value: string) => void;
+}> = ({ label, options, value, onChange }) => {
+  const selectedIdx = useMemo(() => {
+    const idx = findIndex(options, (o) => o.value === value);
+    return idx === -1 ? 0 : idx;
+  }, [options, value]);
+
+  const handleChange = useCallback(
+    (idx: number) => {
+      onChange(options[idx]?.value ?? '');
+    },
+    [options, onChange],
+  );
+
+  return <Select defaultValue={selectedIdx} label={label} onChange={handleChange} options={map(options, (o) => o.label)} />;
+};
+
 const SettingList: React.FC<{ setting: DeviceSettingList; onChange?: (value: number) => void }> = ({ setting, onChange }) => {
   const options = useMemo(
     () => map(setting.value, (value) => `${value.label} ${value.description ? `(${value.description})` : ''}`),
@@ -49,6 +86,8 @@ const SettingsView: React.FC = () => {
   const [isAC3ByDefaultActive, setIsAC3ByDefaultActive] = useStorageState<boolean>('is_ac3_by_default_active');
   const [isForcedByDefaultActive, setIsForcedByDefaultActive] = useStorageState<boolean>('is_forced_by_default_active');
   const [isPauseByOKClickActive, setIsPauseByOKClickActive] = useStorageState<boolean>('is_pause_by_ok_click_active');
+  const [preferredAudioLang, setPreferredAudioLang] = useStorageState<string>('preferred_audio_lang');
+  const [preferredSubtitleLang, setPreferredSubtitleLang] = useStorageState<string>('preferred_subtitle_lang');
   const { software, hardware } = useDeviceInfo();
 
   const boolSettings = useMemo(
@@ -134,6 +173,24 @@ const SettingsView: React.FC = () => {
                       <SettingBool setting={setting} onChange={handleBoolSettingToggle(setting)} />
                     </div>
                   ))}
+                </div>
+                <div className="flex flex-wrap pb-4">
+                  <div className="flex w-1/2 pr-4">
+                    <LanguageSelect
+                      label="Язык аудио по умолчанию"
+                      options={AUDIO_LANGUAGE_OPTIONS}
+                      value={preferredAudioLang}
+                      onChange={setPreferredAudioLang}
+                    />
+                  </div>
+                  <div className="flex w-1/2 pr-4">
+                    <LanguageSelect
+                      label="Язык субтитров по умолчанию"
+                      options={SUBTITLE_LANGUAGE_OPTIONS}
+                      value={preferredSubtitleLang}
+                      onChange={setPreferredSubtitleLang}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-wrap pb-4">
                   <div className="flex w-1/2 pr-4" key="use-hls.js">
