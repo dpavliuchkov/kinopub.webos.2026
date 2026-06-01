@@ -7,7 +7,6 @@ A [Kinopub](https://kinopub.me) client for LG Smart TVs running webOS, built wit
 ## Table of Contents
 
 - [Requirements](#requirements)
-- [Quick Install](#quick-install)
 - [Building from Source](#building-from-source)
 - [TV Setup Guide](#tv-setup-guide)
 - [Troubleshooting](#troubleshooting)
@@ -24,18 +23,6 @@ A [Kinopub](https://kinopub.me) client for LG Smart TVs running webOS, built wit
 | Package manager   | Yarn                                                                                |
 | webOS CLI         | `@webosose/ares-cli` (included as a dev dependency)                                 |
 | Key exchange tool | `ares-novacom` (must be available globally — see [TV Setup Guide](#tv-setup-guide)) |
-
----
-
-## Quick Install
-
-Download the latest pre-built `.ipk` from the [Releases page](https://github.com/adascal/kinopub.webos/releases/latest), then install it:
-
-```bash
-ares-install --device <DEVICE_NAME> <PATH_TO_IPK>
-```
-
-If you haven't set up your TV as a device yet, follow the [TV Setup Guide](#tv-setup-guide) first.
 
 ---
 
