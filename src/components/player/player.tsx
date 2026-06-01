@@ -53,7 +53,7 @@ const Player: React.FC<PlayerProps> = ({
   const [isPauseByOKClickActive] = useStorageState<boolean>('is_pause_by_ok_click_active');
 
   const showControls = useCallback((autoHide: boolean) => {
-    clearTimeout(controlsHideTimeoutRef.current);
+    clearTimeout(controlsHideTimeoutRef.current as NodeJS.Timeout);
     setIsControlsVisible(true);
     if (autoHide) {
       controlsHideTimeoutRef.current = setTimeout(() => setIsControlsVisible(false), 5000);
@@ -127,7 +127,7 @@ const Player: React.FC<PlayerProps> = ({
   }, [playerRef]);
 
   useEffect(() => {
-    return () => clearTimeout(controlsHideTimeoutRef.current);
+    return () => clearTimeout(controlsHideTimeoutRef.current as NodeJS.Timeout);
   }, []);
 
   useEffect(() => {
