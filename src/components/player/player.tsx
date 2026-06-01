@@ -45,34 +45,24 @@ const Player: React.FC<PlayerProps> = ({
   ...props
 }) => {
   const playerRef = useRef<VideoPlayerBase>();
-  const [isPaused, setIsPaused] = useState(true);
-  const [isControlsVisible, setIsControlsVisible] = useState(true);
-  const controlsHideTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPauseByOKClickActive] = useStorageState<boolean>('is_pause_by_ok_click_active');
 
-  const showControls = useCallback((autoHide: boolean) => {
-    clearTimeout(controlsHideTimeoutRef.current as NodeJS.Timeout);
-    setIsControlsVisible(true);
-    if (autoHide) {
-      controlsHideTimeoutRef.current = setTimeout(() => setIsControlsVisible(false), 5000);
-    }
+  const handleControlsAvailable = useCallback(({ available }: { available: boolean }) => {
+    setIsControlsVisible(available);
   }, []);
 
   const handlePlay = useCallback(() => {
-    setIsPaused(false);
     setIsSettingsOpen(false);
-    showControls(true);
     onPlay?.();
-  }, [onPlay, showControls]);
+  }, [onPlay]);
   const handlePause = useCallback(
     (e) => {
-      setIsPaused(true);
-      showControls(false);
       onPause?.(e.currentTime);
     },
-    [onPause, showControls],
+    [onPause],
   );
   const handlePlayPause = useCallback(
     (e: KeyboardEvent) => {
@@ -127,10 +117,6 @@ const Player: React.FC<PlayerProps> = ({
   }, [playerRef]);
 
   useEffect(() => {
-    return () => clearTimeout(controlsHideTimeoutRef.current as NodeJS.Timeout);
-  }, []);
-
-  useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
     if (onTimeSync) {
@@ -160,9 +146,7 @@ const Player: React.FC<PlayerProps> = ({
           <Text>{title}</Text>
         </div>
       )}
-      {isControlsVisible && (
-        <Button className="absolute z-101 bottom-8 right-10 text-blue-600" icon="settings" onClick={handleSettingsOpen} />
-      )}
+      {isControlsVisible && <Button className="absolute z-101 bottom-8 right-10 text-white" icon="settings" onClick={handleSettingsOpen} />}
       {isLoaded && startTime! > 0 && <StartFrom startTime={startTime} player={playerRef} />}
 
       <VideoPlayer
@@ -173,6 +157,7 @@ const Player: React.FC<PlayerProps> = ({
         poster={poster}
         title={description}
         jumpBy={15}
+        onControlsAvailable={handleControlsAvailable}
         onPlay={handlePlay}
         onPause={handlePause}
         onEnded={handleEnded}

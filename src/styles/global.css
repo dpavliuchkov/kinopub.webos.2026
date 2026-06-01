@@ -19,6 +19,15 @@ video {
   bottom: 0;
 }
 
+::cue {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  font-size: 1.15em;
+  line-height: 1.6;
+  padding: 0.15em 0.5em;
+}
+
+
 .enact-fit {
   padding: 0 !important;
 }

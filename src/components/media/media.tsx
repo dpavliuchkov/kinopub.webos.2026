@@ -179,6 +179,13 @@ class Media extends UIMedia {
             track.track.mode = 'showing';
           };
 
+          track.addEventListener('load', () => {
+            Array.from(track.track.cues || []).forEach((cue: any) => {
+              cue.snapToLines = false;
+              cue.line = 88;
+            });
+          });
+
           if (subtitleTrack.src.endsWith('.srt')) {
             convertToVTT(subtitleTrack.src).then(showTrack);
           } else {
